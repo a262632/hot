@@ -1,0 +1,390 @@
+﻿import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Plus, 
+  Trash2, 
+  GripVertical, 
+  Filter, 
+  CloudUpload, 
+  Settings2, 
+  CheckCircle2, 
+  X, 
+  Eye,
+  AlertTriangle,
+  ChevronDown
+} from 'lucide-react';
+
+// 預設部會清單
+const DEPARTMENTS = [
+  "環境部", "氣象署", "衛福部", "教育部", "內政部", "勞動部", "經濟部", "農業部", "交通部", "國防部"
+];
+
+const STAGES = ["整備階段", "應變階段", "復原階段"];
+
+const App = () => {
+  const [cards, setCards] = useState([
+    { id: '1', stage: '應變階段', title: '發布高溫特報', dept: '氣象署', content: '發布全台 40 度高溫橙色燈號警告。', type: 'fixed', isDeleted: false },
+    { id: '2', stage: '應變階段', title: '勞工戶外作業檢查', dept: '勞動部', content: '', type: 'pending', isDeleted: false },
+    { id: '3', stage: '復原階段', title: '中暑案例統計', dept: '衛福部', content: '統計今日急診收治人數與現況。', type: 'fixed', isDeleted: false },
+  ]);
+
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [filterDept, setFilterDept] = useState('all');
+  const [onlyPending, setOnlyPending] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, success
+
+  // 新增卡片的暫存狀態
+  const [newCard, setNewCard] = useState({
+    stage: '應變階段',
+    title: '',
+    dept: '',
+    content: '',
+    type: 'pending'
+  });
+
+  // 篩選後的卡片
+  const filteredCards = useMemo(() => {
+    return cards.filter(card => {
+      const matchDept = filterDept === 'all' || card.dept === filterDept;
+      const matchPending = !onlyPending || card.type === 'pending';
+      const matchDeleted = showDeleted || !card.isDeleted;
+      return matchDept && matchPending && matchDeleted;
+    });
+  }, [cards, filterDept, onlyPending, showDeleted]);
+
+  // 模擬同步
+  const handleSync = () => {
+    setSyncStatus('syncing');
+    setTimeout(() => {
+      setSyncStatus('success');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    }, 1500);
+  };
+
+  const addCard = () => {
+    if (!newCard.title) return;
+    const card = {
+      ...newCard,
+      id: Date.now().toString(),
+      isDeleted: false
+    };
+    setCards([...cards, card]);
+    setIsAdding(false);
+    setNewCard({ stage: '應變階段', title: '', dept: '', content: '', type: 'pending' });
+  };
+
+  const toggleDelete = (id) => {
+    setCards(cards.map(c => c.id === id ? { ...c, isDeleted: !c.isDeleted } : c));
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-orange-500 p-2 rounded-lg text-white">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold flex items-center gap-2">
+                40℃ 高溫演練腳本協作平台
+              </h1>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">115年度 · 跨部會專案</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsAdminMode(!isAdminMode)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                isAdminMode ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Settings2 size={16} />
+              {isAdminMode ? '離開管理模式' : '🛠️ 管理模式'}
+            </button>
+            
+            <button 
+              onClick={handleSync}
+              disabled={syncStatus === 'syncing'}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-sm font-medium transition-all shadow-sm disabled:opacity-50"
+            >
+              {syncStatus === 'syncing' ? (
+                <span className="animate-spin text-white">🔄</span>
+              ) : syncStatus === 'success' ? (
+                <CheckCircle2 size={16} />
+              ) : (
+                <CloudUpload size={16} />
+              )}
+              {syncStatus === 'syncing' ? '同步中...' : syncStatus === 'success' ? '同步完成' : '送出腳本'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Toolbar */}
+        <div className="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-wrap items-center justify-between gap-4 border border-slate-100">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-slate-400" />
+              <span className="text-sm font-medium">部會：</span>
+              <select 
+                value={filterDept} 
+                onChange={(e) => setFilterDept(e.target.value)}
+                className="bg-slate-50 border-none text-sm rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">所有部會</option>
+                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <div className="relative">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer" 
+                  checked={onlyPending}
+                  onChange={(e) => setOnlyPending(e.target.checked)}
+                />
+                <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-orange-500 transition-colors"></div>
+                <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+              </div>
+              <span className="text-sm text-slate-600 group-hover:text-slate-900">僅顯示待填寫</span>
+            </label>
+
+            {isAdminMode && (
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={showDeleted}
+                    onChange={(e) => setShowDeleted(e.target.checked)}
+                  />
+                  <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-slate-600 transition-colors"></div>
+                  <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+                </div>
+                <span className="text-sm text-slate-600 group-hover:text-slate-900">顯示已刪除項目</span>
+              </label>
+            )}
+          </div>
+
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold transition-all shadow-md active:scale-95"
+          >
+            <Plus size={18} />
+            新增卡片
+          </button>
+        </div>
+
+        {/* Board Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCards.map((card, index) => (
+            <div 
+              key={card.id}
+              className={`group relative bg-white border-l-4 rounded-xl shadow-sm hover:shadow-md transition-all ${
+                card.isDeleted ? 'opacity-40 grayscale border-slate-400 bg-slate-100' : 
+                card.type === 'pending' ? 'border-orange-400' : 'border-indigo-500'
+              } p-5`}
+            >
+              {isAdminMode && (
+                <div className="absolute -left-3 top-1/2 -translate-y-1/2 text-slate-300 group-hover:text-slate-400 cursor-grab active:cursor-grabbing">
+                  <GripVertical size={24} />
+                </div>
+              )}
+
+              <div className="flex justify-between items-start mb-4">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                   card.stage === '整備階段' ? 'bg-blue-50 text-blue-600' :
+                   card.stage === '應變階段' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                }`}>
+                  {card.stage}
+                </span>
+                
+                <div className="flex gap-1">
+                  {isAdminMode && (
+                    <button 
+                      onClick={() => toggleDelete(card.id)}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        card.isDeleted ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100' : 'bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500'
+                      }`}
+                      title={card.isDeleted ? "復原" : "刪除"}
+                    >
+                      {card.isDeleted ? <Eye size={16} /> : <Trash2 size={16} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                {card.title}
+                {card.type === 'pending' && <span className="bg-orange-100 text-orange-600 text-[10px] px-1.5 py-0.5 rounded uppercase">待填</span>}
+              </h3>
+
+              <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+                <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-600">
+                  {card.dept.charAt(0)}
+                </div>
+                {card.dept}
+              </div>
+
+              <div className={`text-sm p-3 rounded-lg border min-h-[80px] transition-colors ${
+                card.type === 'pending' && !card.content ? 'border-dashed border-orange-200 bg-orange-50/30' : 'border-slate-100 bg-slate-50/50'
+              }`}>
+                {card.content ? (
+                  <p className="text-slate-700 leading-relaxed">{card.content}</p>
+                ) : (
+                  <p className="text-slate-400 italic">尚未填寫演練具體內容...</p>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {filteredCards.length === 0 && (
+            <div className="col-span-full py-20 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 text-slate-400 rounded-full mb-4">
+                <Filter size={32} />
+              </div>
+              <h3 className="text-slate-500 font-medium text-lg">找不到符合條件的腳本卡片</h3>
+              <p className="text-slate-400">請嘗試調整篩選器或切換管理模式</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Modal: Add Card */}
+      {isAdding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Plus className="text-orange-500" />
+                新增卡片
+              </h3>
+              <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">階段</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {STAGES.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setNewCard({...newCard, stage: s})}
+                      className={`py-2 text-sm rounded-lg border font-medium transition-all ${
+                        newCard.stage === s ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">事件 / 項目名稱</label>
+                <input 
+                  type="text"
+                  placeholder="輸入任務名稱..."
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                  value={newCard.title}
+                  onChange={(e) => setNewCard({...newCard, title: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">負責部會</label>
+                <select 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={newCard.dept}
+                  onChange={(e) => setNewCard({...newCard, dept: e.target.value})}
+                >
+                  <option value="">— 請選擇單位 —</option>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">演練內容 (可留空)</label>
+                <textarea 
+                  rows="3"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                  placeholder="請輸入具體行動內容說明..."
+                  value={newCard.content}
+                  onChange={(e) => setNewCard({...newCard, content: e.target.value})}
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">卡片類型</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="type" 
+                      className="accent-orange-500 w-4 h-4" 
+                      checked={newCard.type === 'pending'}
+                      onChange={() => setNewCard({...newCard, type: 'pending'})}
+                    />
+                    <span className="text-sm font-medium">● 待填寫</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="type" 
+                      className="accent-indigo-500 w-4 h-4" 
+                      checked={newCard.type === 'fixed'}
+                      onChange={() => setNewCard({...newCard, type: 'fixed'})}
+                    />
+                    <span className="text-sm font-medium text-slate-600">固定腳本</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 flex gap-3">
+              <button 
+                onClick={() => setIsAdding(false)}
+                className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all"
+              >
+                取消
+              </button>
+              <button 
+                onClick={addCard}
+                disabled={!newCard.title || !newCard.dept}
+                className="flex-[2] px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 shadow-lg shadow-indigo-200 transition-all active:scale-[0.98]"
+              >
+                新增卡片
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Footer / Status Bar */}
+      <footer className="max-w-6xl mx-auto px-4 py-8 border-t border-slate-200 text-center text-slate-400 text-sm">
+        <p>© 115年度 跨部會高溫災害調適演練計畫系統</p>
+        <p className="mt-1 flex items-center justify-center gap-2">
+          {syncStatus === 'syncing' ? (
+            <span className="text-indigo-500 animate-pulse flex items-center gap-1">
+              <CloudUpload size={14} /> 🔄 結構同步中...
+            </span>
+          ) : (
+            <span className="text-emerald-500 flex items-center gap-1">
+              <CheckCircle2 size={14} /> 已連線至雲端資料庫
+            </span>
+          )}
+        </p>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
